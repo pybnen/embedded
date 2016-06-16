@@ -1,0 +1,12 @@
+<resources>
+    <!-- Default screen margins, per the Android Design guidelines. -->
+    <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="watch_horizontal_25_percent_margin">60dp</dimen>
+    <dimen name="watch_horizontal_50_percent_margin">120dp</dimen>
+    <dimen name="watch_horizontal_75_percent_margin">180dp</dimen>
+
+    <dimen name="watch_top_content">60dp</dimen>
+    <dimen name="watch_bottom_content">120dp</dimen>
+    <dimen name="watch_horizontal_100_percent_margin">240dp</dimen>
+</resources>

@@ -1,0 +1,12 @@
+<resources>
+
+    <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="watch_horizontal_25_percent_margin">80dp</dimen>
+    <dimen name="watch_horizontal_50_percent_margin">160dp</dimen>
+    <dimen name="watch_horizontal_75_percent_margin">240dp</dimen>
+
+    <dimen name="watch_top_content">320dp</dimen>
+    <dimen name="watch_bottom_content">320dp</dimen>
+    <dimen name="watch_horizontal_100_percent_margin">320dp</dimen>
+</resources>
