@@ -1,8 +1,13 @@
 package pervasive.jku.at.wifisensor;
 
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.wifi.ScanResult;
 import android.os.Environment;
 import android.os.IBinder;
@@ -12,6 +17,7 @@ import android.util.Log;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import java.io.File;
@@ -29,6 +35,10 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
     private static final String TAG_SEN = "sen";
     private static final String TAG_OTH = "oth";
     private static final String TAG_IO = "io";
+    private static final int X = 0;
+    private static final int Y = 1;
+    private static final int Z = 2;
+    private static final float NOISE = 8.0f;
 
     private static final String WIFI_SENSOR_NAME = "WiFi RSSi Sensor";
 
@@ -39,6 +49,14 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
     private String semanticPos;
     private FileOutputStream fileOutput;
     private PrintWriter writer;
+
+    private SensorManager mSensorManager;
+    private boolean mStart;
+
+    private float[] mLastAccel = new float[3];
+    private float[] mCurrDelta = new float[3];
+
+    private int vertAccCount = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +87,9 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         if (!wifiBounded) {
             bindWifiService();
         }
+
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        mSensorManager.registerListener(mSensorListener, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     private void bindWifiService() {
@@ -127,12 +148,14 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
     protected void onResume() {
         super.onResume();
         Log.d(TAG_OTH, "on resume");
+        mSensorManager.registerListener(mSensorListener, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         Log.d(TAG_OTH, "on pause");
+        mSensorManager.unregisterListener(mSensorListener);
     }
 
     private void registerWifi() {
@@ -214,4 +237,42 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         txtLogfile.setEnabled(true);
         txtSemanticPos.setEnabled(true);
     }
+
+
+    private final SensorEventListener mSensorListener = new SensorEventListener() {
+
+        public void onSensorChanged(SensorEvent event) {
+            if (!mStart) {
+                mLastAccel[X] = event.values[X];
+                mLastAccel[Y] = event.values[Y];
+                mLastAccel[Z] = event.values[Z];
+                mStart = true;
+            } else {
+                mCurrDelta[X] = Math.abs(mLastAccel[X] - event.values[X]);
+                mCurrDelta[Y]  = Math.abs(mLastAccel[Y] - event.values[Y]);
+                mCurrDelta[Z]  = Math.abs(mLastAccel[Z] - event.values[Z]);
+                if (mCurrDelta[X] < NOISE) mCurrDelta[X] = (float)0.0;
+                if (mCurrDelta[Y] < NOISE) mCurrDelta[Y] = (float)0.0;
+                if (mCurrDelta[Z] < NOISE) mCurrDelta[Z] = (float)0.0;
+                mLastAccel[X] = event.values[X];
+                mLastAccel[Y] = event.values[Y];
+                mLastAccel[Z] = event.values[Z];
+                if (mCurrDelta[Y] > mCurrDelta[X]) {
+                    Log.e(TAG_SEN, "###vertical X: " + mCurrDelta[X] + " Y: " + mCurrDelta[Y]);
+                    vertAccCount++;
+                }
+            }
+
+            if (vertAccCount > 4) {
+                //HANDSHAKE DETECTED! COMMUNICATE CONTACT INFO
+                Log.e(TAG_SEN, "###HANDSHAKE !!");
+                vertAccCount = 0;
+            }
+        }
+
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
+    };
+
+
 }
