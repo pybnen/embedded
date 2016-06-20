@@ -41,6 +41,7 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
     private static final float NOISE = 8.0f;
 
     private static final String WIFI_SENSOR_NAME = "WiFi RSSi Sensor";
+    private static final String RSSI_LOG_FILENAME = "positions.csv";
 
     private boolean wifiBounded;
     private WifiService wifiService;
@@ -190,14 +191,12 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
      * disables input for semantic position and log file name
      */
     private void openLogFile() {
-        EditText txtLogfile = (EditText) findViewById(R.id.txt_log_file);
         EditText txtSemanticPos = (EditText) findViewById(R.id.txt_semantic_pos);
 
         semanticPos = txtSemanticPos.getText().toString();
 
         if(isExternalStorageWritable()) {
-            File file = new File(Environment.getExternalStoragePublicDirectory(""),
-                    txtLogfile.getText().toString() + ".csv");
+            File file = new File(Environment.getExternalStoragePublicDirectory(""), RSSI_LOG_FILENAME);
             try {
                 fileOutput = new FileOutputStream(file, true);
                 writer = new PrintWriter(fileOutput);
@@ -209,7 +208,6 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         }
 
         // disable settings while scanning
-        txtLogfile.setEnabled(false);
         txtSemanticPos.setEnabled(false);
     }
 
@@ -218,7 +216,6 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
      * enables input for semantic position and log file name
      */
     private void closeLogFile() {
-        EditText txtLogfile = (EditText) findViewById(R.id.txt_log_file);
         EditText txtSemanticPos = (EditText) findViewById(R.id.txt_semantic_pos);
 
         if (writer != null) {
@@ -236,7 +233,6 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         }
 
         // allow settings to be changed
-        txtLogfile.setEnabled(true);
         txtSemanticPos.setEnabled(true);
     }
 

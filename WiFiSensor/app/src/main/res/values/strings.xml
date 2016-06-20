@@ -4,9 +4,6 @@
     <string name="your_wifi">Your Sensing</string>
     <string name="sensing_of">%s\'s sensing</string>
 
-    <string name="log_file_label">Logfile name:</string>
-    <string name="log_file_default">positions</string>
-
     <string name="semantic_pos_label">Semantic position:</string>
     <string name="semantic_pos_default">living room</string>
 </resources>
