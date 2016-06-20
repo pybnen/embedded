@@ -57,6 +57,8 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
     private float[] mCurrDelta = new float[3];
 
     private int vertAccCount = 0;
+    long tStartTime;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -242,6 +244,13 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
     private final SensorEventListener mSensorListener = new SensorEventListener() {
 
         public void onSensorChanged(SensorEvent event) {
+            if (vertAccCount == 0) {
+                tStartTime = System.currentTimeMillis();
+            } else if ((System.currentTimeMillis() - tStartTime) >= 4000) {
+                vertAccCount = 0;
+                tStartTime = System.currentTimeMillis();
+            }
+
             if (!mStart) {
                 mLastAccel[X] = event.values[X];
                 mLastAccel[Y] = event.values[Y];
@@ -258,8 +267,11 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
                 mLastAccel[Y] = event.values[Y];
                 mLastAccel[Z] = event.values[Z];
                 if (mCurrDelta[Y] > mCurrDelta[X]) {
-                    Log.e(TAG_SEN, "###vertical X: " + mCurrDelta[X] + " Y: " + mCurrDelta[Y]);
-                    vertAccCount++;
+                    Log.e(TAG_SEN, "###vertical X: " + mCurrDelta[X] + " Y: " + mCurrDelta[Y] + " Time Elapsed: " + (System.currentTimeMillis() - tStartTime));
+
+                    if ((System.currentTimeMillis() - tStartTime) < 4000) {
+                        vertAccCount++;
+                    }
                 }
             }
 
