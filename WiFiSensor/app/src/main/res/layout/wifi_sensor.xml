@@ -2,7 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:paddingBottom="@dimen/activity_vertical_margin"
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
@@ -10,49 +10,82 @@
     tools:context=".WiFiActivity"
     android:id="@+id/x">
 
-    <LinearLayout
-        android:orientation="vertical"
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true">
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/watch_top_content"
-            android:orientation="horizontal"
-            android:id="@+id/control_container">
-            <ToggleButton
-                android:layout_width="@dimen/watch_horizontal_25_percent_margin"
-                android:layout_height="wrap_content"
-                android:text="@string/wifi_scan"
-                android:id="@+id/toggle_wifi_scan" />
+        android:id="@+id/scrollView" >
 
-            <TextView
-                android:id="@+id/sensorContent"
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/watch_top_content"
+                android:orientation="horizontal"
+                android:id="@+id/control_container">
+                <ToggleButton
+                    android:layout_width="@dimen/watch_horizontal_25_percent_margin"
+                    android:layout_height="wrap_content"
+                    android:text="@string/wifi_scan"
+                    android:id="@+id/toggle_wifi_scan" />
+
+                <TextView
+                    android:id="@+id/sensorContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text=""
+                    android:layout_marginLeft="1dp" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:text=""
-                android:layout_marginLeft="1dp" />
+                android:orientation="vertical"
+                android:id="@+id/settings_container">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:text="@string/semantic_pos_label"
+                    android:id="@+id/label_semantic_pos" />
+
+                <EditText
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/semantic_pos_default"
+                    android:id="@+id/txt_semantic_pos" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:text="@string/pos_label"
+                    android:id="@+id/label_pos" />
+
+                <EditText
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pos_default"
+                    android:id="@+id/txt_pos" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:text="@string/name_label"
+                    android:id="@+id/label_name" />
+
+                <EditText
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/name_default"
+                    android:id="@+id/txt_name" />
+            </LinearLayout>
+
         </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/watch_bottom_content"
-            android:orientation="vertical"
-            android:id="@+id/settings_container">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textAppearance="?android:attr/textAppearanceSmall"
-                android:text="@string/semantic_pos_label"
-                android:id="@+id/label_semantic_pos" />
-
-            <EditText
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/semantic_pos_default"
-                android:id="@+id/txt_semantic_pos" />
-        </LinearLayout>
-    </LinearLayout>
+    </ScrollView>
 </RelativeLayout>

@@ -4,6 +4,12 @@
     <string name="your_wifi">Your Sensing</string>
     <string name="sensing_of">%s\'s sensing</string>
 
+    <string name="name_label">Name:</string>
+    <string name="name_default">John Doe</string>
+
     <string name="semantic_pos_label">Semantic position:</string>
     <string name="semantic_pos_default">living room</string>
+
+    <string name="pos_label">Position (x/y):</string>
+    <string name="pos_default">0.0/0.0</string>
 </resources>
