@@ -12,4 +12,8 @@
 
     <string name="pos_label">Position (x/y):</string>
     <string name="pos_default">0.0/0.0</string>
+
+    <string name="cur_pos_label">Current position:</string>
+    <string name="pos_not_found">Position not found</string>
+    <string name="pos_learn_mode">Learn mode</string>
 </resources>

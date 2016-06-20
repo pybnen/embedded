@@ -17,17 +17,20 @@ import android.util.Log;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.HashMap;
+import java.util.Map;
 
 import pervasive.jku.at.wifisensor.wifi.WifiScanEvent;
 import pervasive.jku.at.wifisensor.wifi.WifiScanListener;
 import pervasive.jku.at.wifisensor.wifi.WifiService;
+import pervasive.jku.at.wifisensor.wifi.pos.Position;
+import pervasive.jku.at.wifisensor.wifi.pos.Positioning;
 
 public class WiFiActivity extends ActionBarActivity implements WifiScanListener {
 
@@ -52,6 +55,9 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
     private float posY = 0;
     private FileOutputStream fileOutput;
     private PrintWriter writer;
+    private boolean learnMode = false;
+    private Positioning positioning = null;
+    private Position curPos = null;
 
     private SensorManager mSensorManager;
     private boolean mStart;
@@ -68,22 +74,21 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.wifi_sensor);
 
+        positioning = new Positioning();
+        readPositions();
+
         ToggleButton toggleButton = (ToggleButton) findViewById(R.id.toggle_wifi_scan);
         toggleButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                                                     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                                                         if (isChecked) {
                                                             openLogFile();
+                                                            curPos = null;
+                                                            TextView txtCurPos = (TextView) findViewById(R.id.txt_cur_pos);
+                                                            txtCurPos.setText(getResources().getString(R.string.pos_learn_mode));
 
-                                                            Intent mIntent = new Intent(WiFiActivity.this, WifiService.class);
-                                                            Log.d(TAG_OTH, "starting WifiService");
-                                                            startService(mIntent);
-                                                            registerWifi();
                                                         } else {
-                                                            Intent mIntent = new Intent(WiFiActivity.this, WifiService.class);
-                                                            Log.d(TAG_OTH, "stopping WifiService");
-                                                            unregisterWifi();
-
-                                                            closeLogFile();;
+                                                            closeLogFile();
+                                                            readPositions();
                                                         }
                                                     }
                                                 }
@@ -114,8 +119,11 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
                 wifiBounded = true;
                 WifiService.LocalBinder mLocalBinder = (WifiService.LocalBinder) service;
                 wifiService = mLocalBinder.getServerInstance();
+
+                Intent mIntent = new Intent(WiFiActivity.this, WifiService.class);
+                Log.d(TAG_OTH, "starting WifiService");
+                startService(mIntent);
                 registerWifi();
-                ((ToggleButton) findViewById(R.id.toggle_wifi_scan)).setChecked(wifiService.isScanning());
             }
         };
         bindService(mIntent, wifiServiceConnection, BIND_AUTO_CREATE);
@@ -128,28 +136,40 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         StringBuffer sb = new StringBuffer();
         StringBuilder sbCsv = new StringBuilder();
 
+        Map<String, Integer> fingerprint = new HashMap<>();
         sbCsv.append(semanticPos).append(",")
                 .append(posX).append(",")
                 .append(posY).append(",");
-
         for (ScanResult data : event.getResult()) {
             sb.append(data.BSSID).append("/")
                     .append(data.level).append(", ");
 
             sbCsv.append(data.BSSID).append(",")
                     .append(data.level).append(",");
+
+            fingerprint.put(data.BSSID, data.level);
         }
         tc.setText(sb.toString());
 
-        if (writer != null) {
+        if (learnMode && writer != null) {
             // trim the last ',"
             sbCsv.setLength(sbCsv.length() - 1);
             writer.println(sbCsv.toString());
+        } else if(!learnMode) {
+            curPos = positioning.calcPosition(fingerprint);
+            TextView txtCurPos = (TextView) findViewById(R.id.txt_cur_pos);
+            txtCurPos.setText(curPos != null ?
+                    curPos.toString() :
+                    getResources().getString(R.string.pos_not_found));
         }
     }
 
     @Override
     protected void onDestroy() {
+        Intent mIntent = new Intent(WiFiActivity.this, WifiService.class);
+        Log.d(TAG_OTH, "stopping WifiService");
+        unregisterWifi();
+
         unbindService(wifiServiceConnection);
         Log.d(TAG_OTH, "on destroy");
         super.onDestroy();
@@ -183,10 +203,10 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
     }
 
     /**
-     * Checks if external storage is writable
+     * Checks if external storage is mounted
      * @return true if writable
      */
-    private boolean isExternalStorageWritable() {
+    private boolean isExternalStorageMounted() {
         String state = Environment.getExternalStorageState();
         return Environment.MEDIA_MOUNTED.equals(state);
     }
@@ -201,16 +221,17 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
 
         semanticPos = txtSemanticPos.getText().toString();
         parseAbsolutePos(txtPos.getText().toString());
-        if(isExternalStorageWritable()) {
+        if(isExternalStorageMounted()) {
             File file = new File(Environment.getExternalStoragePublicDirectory(""), RSSI_LOG_FILENAME);
             try {
                 fileOutput = new FileOutputStream(file, true);
                 writer = new PrintWriter(fileOutput);
+                learnMode = true;
             } catch (IOException e) {
                 Log.e(TAG_IO, "error while creating log file", e);
             }
         } else {
-            Log.e(TAG_IO, "external storage not writable");
+            Log.e(TAG_IO, "external storage not mounted");
         }
 
         // disable settings while scanning
@@ -225,7 +246,7 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
     private void closeLogFile() {
         EditText txtSemanticPos = (EditText) findViewById(R.id.txt_semantic_pos);
         EditText txtPos = (EditText) findViewById(R.id.txt_pos);
-
+        learnMode = false;
         if (writer != null) {
             writer.close();
             writer = null;
@@ -239,7 +260,6 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
             }
             fileOutput = null;
         }
-
         // allow settings to be changed
         txtSemanticPos.setEnabled(true);
         txtPos.setEnabled(true);
@@ -262,6 +282,22 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         // no valid input set to zero
         posX = 0;
         posY = 0;
+    }
+
+    /**
+     * Reads position file
+     */
+    private void readPositions() {
+        if(isExternalStorageMounted()) {
+            File file = new File(Environment.getExternalStoragePublicDirectory(""), RSSI_LOG_FILENAME);
+            try {
+                positioning.parsePositions(file);
+            } catch (IOException e) {
+                Log.e(TAG_IO, "error while reading log file", e);
+            }
+        } else {
+            Log.e(TAG_IO, "external storage not mounted");
+        }
     }
 
 
@@ -302,6 +338,8 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
             if (vertAccCount > 4) {
                 //HANDSHAKE DETECTED! COMMUNICATE CONTACT INFO
                 Log.e(TAG_SEN, "###HANDSHAKE !!");
+                Log.e(TAG_SEN, "###I am " + ((EditText)findViewById(R.id.txt_name)).getText() +
+                        " we are at " + (curPos != null ? curPos.toString() : "?"));
                 vertAccCount = 0;
             }
         }

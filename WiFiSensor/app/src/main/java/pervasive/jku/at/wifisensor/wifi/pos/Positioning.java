@@ -1,7 +1,5 @@
 package pervasive.jku.at.wifisensor.wifi.pos;
 
-import android.util.Log;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -19,6 +17,10 @@ public class Positioning {
      * @return likely position
      */
     public Position calcPosition(Map<String, Integer> fingerprint) {
+        if(fingerprint == null || fingerprint.isEmpty()) {
+            return null;
+        }
+
         double minDistance = Double.MAX_VALUE;
         Position likelyPos = null;
 
