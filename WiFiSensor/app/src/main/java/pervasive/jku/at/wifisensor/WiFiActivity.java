@@ -48,6 +48,8 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
     private ServiceConnection wifiServiceConnection;
 
     private String semanticPos;
+    private float posX = 0;
+    private float posY = 0;
     private FileOutputStream fileOutput;
     private PrintWriter writer;
 
@@ -126,10 +128,16 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         StringBuffer sb = new StringBuffer();
         StringBuilder sbCsv = new StringBuilder();
 
-        sbCsv.append(semanticPos + ",");
+        sbCsv.append(semanticPos).append(",")
+                .append(posX).append(",")
+                .append(posY).append(",");
+
         for (ScanResult data : event.getResult()) {
-            sb.append(data.BSSID + "/" + data.level + ", ");
-            sbCsv.append(data.BSSID + "," + data.level + ",");
+            sb.append(data.BSSID).append("/")
+                    .append(data.level).append(", ");
+
+            sbCsv.append(data.BSSID).append(",")
+                    .append(data.level).append(",");
         }
         tc.setText(sb.toString());
 
@@ -180,21 +188,19 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
      */
     private boolean isExternalStorageWritable() {
         String state = Environment.getExternalStorageState();
-        if (Environment.MEDIA_MOUNTED.equals(state)) {
-            return true;
-        }
-        return false;
+        return Environment.MEDIA_MOUNTED.equals(state);
     }
 
     /**
-     * opens log file, and saves semantic position input,
-     * disables input for semantic position and log file name
+     * opens log file, and saves semantic position and absolute position input,
+     * disables input for semantic position and absolute position
      */
     private void openLogFile() {
         EditText txtSemanticPos = (EditText) findViewById(R.id.txt_semantic_pos);
+        EditText txtPos = (EditText) findViewById(R.id.txt_pos);
 
         semanticPos = txtSemanticPos.getText().toString();
-
+        parseAbsolutePos(txtPos.getText().toString());
         if(isExternalStorageWritable()) {
             File file = new File(Environment.getExternalStoragePublicDirectory(""), RSSI_LOG_FILENAME);
             try {
@@ -209,14 +215,16 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
 
         // disable settings while scanning
         txtSemanticPos.setEnabled(false);
+        txtPos.setEnabled(false);
     }
 
     /**
      * Closes print writer and file output stream
-     * enables input for semantic position and log file name
+     * enables input for semantic position and absolute position
      */
     private void closeLogFile() {
         EditText txtSemanticPos = (EditText) findViewById(R.id.txt_semantic_pos);
+        EditText txtPos = (EditText) findViewById(R.id.txt_pos);
 
         if (writer != null) {
             writer.close();
@@ -234,6 +242,26 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
 
         // allow settings to be changed
         txtSemanticPos.setEnabled(true);
+        txtPos.setEnabled(true);
+    }
+
+    /**
+     * Parses user input for absolute position
+     * and sets position
+     * @param input user input
+     */
+    private void parseAbsolutePos(String input) {
+        if (!input.isEmpty()) {
+            String[] sPos = input.split("/");
+            if(sPos.length == 2) {
+                posX = Float.parseFloat(sPos[0]);
+                posY = Float.parseFloat(sPos[1]);
+                return;
+            }
+        }
+        // no valid input set to zero
+        posX = 0;
+        posY = 0;
     }
 
 
@@ -281,6 +309,4 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
         }
     };
-
-
 }
