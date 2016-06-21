@@ -88,6 +88,7 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener,
 
     private int vertAccCount = 0;
     long tStartTime;
+    long lastShake = 0;
 
 
     @Override
@@ -242,6 +243,11 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener,
     public void messageReceived(String topic, Buffer content) {
         Log.d(TAG_IOT, "message with size " + content.length() + " received from topic: " + topic);
         try {
+            if (System.currentTimeMillis() - lastShake  > 5000) {
+                Log.e(TAG_IOT, "message received but ignored: no handshake made");
+                return;
+            }
+
             String msg = new AsciiBuffer(content).toString();
             if (msg.isEmpty()) {
                 return;
@@ -261,7 +267,7 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener,
             // ignore contact, if its your contact, or not on your position, or '?'
             // there is no value in a contact that doesn't now where it is
             if (position.equals("?") || !position.equals(myPosition) || contactName.equals(myContactName)) {
-                Log.d(TAG_IOT, "message received but ignored: " + msg);
+                Log.e(TAG_IOT, "message received but ignored: " + msg);
                 return;
             }
 
@@ -477,7 +483,7 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener,
 
                 Log.e(TAG_SEN, "###HANDSHAKE !!");
                 Log.e(TAG_SEN, "###I am " + contactName + " we are at " + position);
-
+                lastShake = System.currentTimeMillis();
                 if(commService!=null) {
                     commService.sendMessage(TOPIC_NAME, contactName + "," + position);
                 } else {
