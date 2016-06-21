@@ -9,6 +9,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.IBinder;
 import android.support.v7.app.ActionBarActivity;
@@ -19,6 +20,11 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
+import org.fusesource.hawtbuf.AsciiBuffer;
+import org.fusesource.hawtbuf.Buffer;
+import org.fusesource.hawtbuf.DataByteArrayInputStream;
+import org.fusesource.hawtbuf.DataByteArrayOutputStream;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -26,29 +32,44 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 
+import pervasive.jku.at.wifisensor.comm.CommService;
+import pervasive.jku.at.wifisensor.comm.CommunicationListener;
 import pervasive.jku.at.wifisensor.wifi.WifiScanEvent;
 import pervasive.jku.at.wifisensor.wifi.WifiScanListener;
 import pervasive.jku.at.wifisensor.wifi.WifiService;
 import pervasive.jku.at.wifisensor.wifi.pos.Position;
 import pervasive.jku.at.wifisensor.wifi.pos.Positioning;
 
-public class WiFiActivity extends ActionBarActivity implements WifiScanListener {
+public class WiFiActivity extends ActionBarActivity implements WifiScanListener, CommunicationListener {
 
     private static final String TAG_REG = "reg";
+    private static final String TAG_IOT = "iot";
     private static final String TAG_SEN = "sen";
     private static final String TAG_OTH = "oth";
     private static final String TAG_IO = "io";
+
     private static final int X = 0;
     private static final int Y = 1;
     private static final int Z = 2;
     private static final float NOISE = 8.0f;
 
+    private static final int CONTACTNAME_IDX = 0;
+    private static final int POS_IDX = 1;
+
     private static final String WIFI_SENSOR_NAME = "WiFi RSSi Sensor";
+    private static final String COMM_SENSOR_NAME="Comm Sensor";
+
     private static final String RSSI_LOG_FILENAME = "positions.csv";
+    private static final String CONTACT_LOG_FILENAME = "contacts.csv";
+
+    private static final String TOPIC_NAME = "passhandshakeleaf";
 
     private boolean wifiBounded;
+    private boolean commBounded;
     private WifiService wifiService;
+    private CommService commService;
     private ServiceConnection wifiServiceConnection;
+    private ServiceConnection commServiceConnection;
 
     private String semanticPos;
     private float posX = 0;
@@ -85,7 +106,6 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
                                                             curPos = null;
                                                             TextView txtCurPos = (TextView) findViewById(R.id.txt_cur_pos);
                                                             txtCurPos.setText(getResources().getString(R.string.pos_learn_mode));
-
                                                         } else {
                                                             closeLogFile();
                                                             readPositions();
@@ -98,8 +118,36 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
             bindWifiService();
         }
 
+        if(!commBounded) {
+            bindCommunicationService();
+        }
+
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mSensorManager.registerListener(mSensorListener, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    private void bindCommunicationService(){
+        Log.d(TAG_OTH, "binding commService");
+        Intent mIntent = new Intent(this, CommService.class);
+        commServiceConnection = new ServiceConnection() {
+
+            public void onServiceDisconnected(ComponentName name) {
+                Log.d(TAG_OTH, "service " + name.toShortString() + " is disconnected");
+                commBounded = false;
+                commService = null;
+            }
+
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                Log.d(TAG_OTH, "service " + name.toShortString() + " is connected");
+                commBounded = true;
+                CommService.LocalBinder mLocalBinder = (CommService.LocalBinder) service;
+                commService = mLocalBinder.getServerInstance();
+                registerComm();
+            }
+        };
+        bindService(mIntent, commServiceConnection, BIND_AUTO_CREATE);
+        Log.d(TAG_OTH, "starting CommService");
+        startService(mIntent);
     }
 
     private void bindWifiService() {
@@ -119,21 +167,19 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
                 wifiBounded = true;
                 WifiService.LocalBinder mLocalBinder = (WifiService.LocalBinder) service;
                 wifiService = mLocalBinder.getServerInstance();
-
-                Intent mIntent = new Intent(WiFiActivity.this, WifiService.class);
-                Log.d(TAG_OTH, "starting WifiService");
-                startService(mIntent);
                 registerWifi();
             }
         };
         bindService(mIntent, wifiServiceConnection, BIND_AUTO_CREATE);
+        Log.d(TAG_OTH, "starting WifiService");
+        startService(mIntent);
     }
 
     @Override
     public void onWifiChanged(WifiScanEvent event) {
         Log.d(TAG_SEN, "sensor event received from " + WIFI_SENSOR_NAME + " " + event.getMAC());
         TextView tc = (TextView) findViewById(R.id.sensorContent);
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         StringBuilder sbCsv = new StringBuilder();
 
         Map<String, Integer> fingerprint = new HashMap<>();
@@ -166,10 +212,13 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
 
     @Override
     protected void onDestroy() {
-        Intent mIntent = new Intent(WiFiActivity.this, WifiService.class);
         Log.d(TAG_OTH, "stopping WifiService");
         unregisterWifi();
 
+        Log.d(TAG_OTH, "stopping CommService");
+        unregisterComm();
+
+        unbindService(commServiceConnection);
         unbindService(wifiServiceConnection);
         Log.d(TAG_OTH, "on destroy");
         super.onDestroy();
@@ -189,6 +238,47 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         mSensorManager.unregisterListener(mSensorListener);
     }
 
+    @Override
+    public void messageReceived(String topic, Buffer content) {
+        Log.d(TAG_IOT, "message with size " + content.length() + " received from topic: " + topic);
+        try {
+            String msg = new AsciiBuffer(content).toString();
+            if (msg.isEmpty()) {
+                return;
+            }
+            // trim the last newline
+            msg = msg.trim();
+            String[] fields = msg.split(",");
+            if (fields.length != 2) {
+                return;
+            }
+
+            String myContactName = ((EditText)findViewById(R.id.txt_name)).getText().toString();
+            String myPosition = (curPos != null ? curPos.toString() : "?");
+            final String contactName = fields[CONTACTNAME_IDX];
+            String position = fields[POS_IDX];
+
+            // ignore contact, if its your contact, or not on your position, or '?'
+            // there is no value in a contact that doesn't now where it is
+            if (position.equals("?") || !position.equals(myPosition) || contactName.equals(myContactName)) {
+                Log.d(TAG_IOT, "message received but ignored: " + msg);
+                return;
+            }
+
+            logContact(contactName, position);
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    TextView textContact = (TextView) findViewById(R.id.txt_last_contact);
+                    textContact.setText(contactName);
+                }
+            });
+        } catch (Exception e){
+            Log.e(TAG_IOT, "error processing message",e);
+        }
+    }
+
     private void registerWifi() {
         Log.d(TAG_REG, "registering " + WIFI_SENSOR_NAME);
         wifiService.registerListener(this);
@@ -200,6 +290,18 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
             wifiService.unregisterListener(this);
             wifiService.stopScanning();
         }
+    }
+
+    private void registerComm(){
+        Log.d(TAG_REG, "registering " + COMM_SENSOR_NAME);
+        commService.registerListener(this);
+        commService.addTopic(TOPIC_NAME);
+    }
+
+    private void unregisterComm(){
+        Log.d(TAG_REG, "unregistering " + COMM_SENSOR_NAME);
+        commService.unregisterListener(this);
+        commService.removeTopic(TOPIC_NAME);
     }
 
     /**
@@ -300,6 +402,38 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
         }
     }
 
+    /**
+     * Logs contact
+     */
+    private void logContact(String name, String pos) {
+        if(isExternalStorageMounted()) {
+            File file = new File(Environment.getExternalStoragePublicDirectory(""), CONTACT_LOG_FILENAME);
+            FileOutputStream fo = null;
+            PrintWriter pw = null;
+            try {
+                fo = new FileOutputStream(file, true);
+                pw = new PrintWriter(fo);
+
+                pw.println(name + "," + pos);
+            } catch (IOException e) {
+                Log.e(TAG_IO, "error while creating log file", e);
+            } finally {
+                if (pw != null) {
+                    pw.close();
+                }
+                if(fo != null) {
+                    try {
+                        fo.close();
+                    } catch (IOException e) {
+                        Log.e(TAG_IO, "error while closing logfile", e);
+                    }
+                }
+            }
+        } else {
+            Log.e(TAG_IO, "external storage not mounted");
+        }
+    }
+
 
     private final SensorEventListener mSensorListener = new SensorEventListener() {
 
@@ -337,9 +471,18 @@ public class WiFiActivity extends ActionBarActivity implements WifiScanListener 
 
             if (vertAccCount > 4) {
                 //HANDSHAKE DETECTED! COMMUNICATE CONTACT INFO
+
+                String contactName = ((EditText)findViewById(R.id.txt_name)).getText().toString();
+                String position = (curPos != null ? curPos.toString() : "?");
+
                 Log.e(TAG_SEN, "###HANDSHAKE !!");
-                Log.e(TAG_SEN, "###I am " + ((EditText)findViewById(R.id.txt_name)).getText() +
-                        " we are at " + (curPos != null ? curPos.toString() : "?"));
+                Log.e(TAG_SEN, "###I am " + contactName + " we are at " + position);
+
+                if(commService!=null) {
+                    commService.sendMessage(TOPIC_NAME, contactName + "," + position);
+                } else {
+                    Log.e(TAG_IOT, "comm not available");
+                }
                 vertAccCount = 0;
             }
         }

@@ -16,4 +16,7 @@
     <string name="cur_pos_label">Current position:</string>
     <string name="pos_not_found">Position not found</string>
     <string name="pos_learn_mode">Learn mode</string>
+
+
+    <string name="last_contact_label">Last contact:</string>
 </resources>

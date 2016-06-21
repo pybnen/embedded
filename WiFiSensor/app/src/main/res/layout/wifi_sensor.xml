@@ -44,7 +44,7 @@
                 android:orientation="vertical"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:id="@+id/cur_pos_container">
+                android:id="@+id/info_container">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -57,6 +57,16 @@
                     android:textAppearance="?android:attr/textAppearanceLarge"
                     android:id="@+id/txt_cur_pos" />
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="fill_parent"
+                    android:text="@string/last_contact_label"
+                    android:id="@+id/label_last_contact" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?android:attr/textAppearanceLarge"
+                    android:id="@+id/txt_last_contact" />
             </LinearLayout>
 
             <LinearLayout
